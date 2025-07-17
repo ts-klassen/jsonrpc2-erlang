@@ -21,9 +21,9 @@ good_handler(_Method, _Params) -> ok.
 %% ------------------------------------------------------------------
 
 handle_notification_jsone_test() ->
-    Notification = {[{<<"jsonrpc">>, <<"2.0">>},
-                     {<<"method">>, <<"notify">>},
-                     {<<"params">>, []}]},
+    Notification = #{<<"jsonrpc">> => <<"2.0">>,
+                     <<"method">> => <<"notify">>,
+                     <<"params">> => []},
     Encoded = encode(Notification),
     noreply = jsonrpc2:handle(Encoded,
                               fun good_handler/2,
@@ -37,10 +37,10 @@ handle_notification_jsone_test() ->
 echo_handler(_Method, _Params) -> <<"pong">>.
 
 handle_call_jsone_test() ->
-    Call = {[{<<"jsonrpc">>, <<"2.0">>},
-             {<<"method">>, <<"ping">>},
-             {<<"params">>, []},
-             {<<"id">>, 1}]},
+    Call = #{<<"jsonrpc">> => <<"2.0">>,
+             <<"method">> => <<"ping">>,
+             <<"params">> => [],
+             <<"id">> => 1},
     EncodedCall = encode(Call),
 
     {reply, EncodedReply} = jsonrpc2:handle(EncodedCall,
@@ -49,6 +49,6 @@ handle_call_jsone_test() ->
                                             fun encode/1),
 
     %% Decode the reply using jsone and validate its structure.
-    {[{<<"jsonrpc">>, <<"2.0">>},
-       {<<"result">>, <<"pong">>},
-       {<<"id">>, 1}]} = decode(EncodedReply).
+    #{<<"jsonrpc">> := <<"2.0">>,
+       <<"result">> := <<"pong">>,
+       <<"id">> := 1} = decode(EncodedReply).
