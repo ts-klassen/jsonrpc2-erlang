@@ -1,6 +1,10 @@
 JSON-RPC 2.0 for Erlang
 =======================
 
+[![Erlang CI](https://github.com/ts-klassen/jsonrpc2-erlang/actions/workflows/erlang-tests.yml/badge.svg?branch=main)](https://github.com/ts-klassen/jsonrpc2-erlang/actions/workflows/erlang-tests.yml)
+[Coverage report](https://ts-klassen.github.io/jsonrpc2-erlang/cover/)
+[API docs](https://ts-klassen.github.io/jsonrpc2-erlang/edoc/)
+
 Transport agnostic library for JSON-RPC 2.0 servers and clients.
 
 This page contains the manual for the server part, the `jsonrpc2` module. The client part has a
