@@ -14,14 +14,16 @@ client library, see the source code: [jsonrpc2_client.erl](src/jsonrpc2_client.e
 Features
 --------
 
-* can use any JSON encoder and decoder that supports the eep0018 style terms
-  format,
+* can use any JSON encoder and decoder that supports the EEP-18 style term
+  format (property lists) or that decodes JSON objects into Erlang maps,
 * transport neutral
 * dispatches parsed requests to a simple callback function
 * supports an optional callback "map" function for batch requests, e.g. to
   support concurrent processing of the requests in a batch,
 * handles rpc calls and notifications,
 * supports named and unnamed parameters,
+* accepts JSON objects represented either as property lists (EEP-18) **or**
+  Erlang maps,
 * includes unit tests for all examples in the JSON-RPC 2.0 specification.
 
 Example
@@ -50,11 +52,18 @@ Types
 -----
 
 ```Erlang
-json() :: true | false | null | binary() | [json()] | {[{binary(), json()}]}.
+
+%% Objects can be represented either as a property list (EEP-18 style) or as an
+%% Erlang map.  Many modern JSON libraries – for example jsone – use the latter
+%% by default, while others (e.g. jiffy) default to the former.  The library
+%% accepts both representations transparently.
+
+json() :: true | false | null | binary() | [json()] |
+          {[{binary(), json()}]} | #{binary() => json()}.
 
 handlerfun() :: fun((method(), params()) -> json()).
 method() :: binary().
-params() :: [json()] | {[{binary(), json()}]}.
+params() :: [json()] | {[{binary(), json()}]} | #{binary() => json()}.
 
 mapfun() :: fun((fun((A) -> B), [A]) -> [B]). %% the same as lists:map/2
 ```
@@ -157,6 +166,7 @@ Compatible JSON parsers
 
 * Jiffy, https://github.com/davisp/jiffy
 * erlang-json, https://github.com/hio/erlang-json
+* jsone, https://github.com/sile/jsone
 * Mochijson2 using ```mochijson2:decode(Bin, [{format, eep18}])```
 * Probably more...
 
