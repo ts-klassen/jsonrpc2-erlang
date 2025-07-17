@@ -1,0 +1,200 @@
+name: Erlang CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+# Top-level permissions for whole workflow (needed by Pages actions)
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Ensure only one Pages deployment runs at a time
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  REBAR3_VERSION: '3.23.0'
+  # OTP version to use for coverage and docs publishing
+  COVERAGE_OTP: '26'
+
+jobs:
+  test:
+    name: OTP ${{ matrix.otp }} – Ubuntu
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        otp: [24, 25, 26, 27]
+
+    services:
+      couchdb:
+        image: couchdb:3
+        ports:
+          - 5984:5984
+        env:
+          COUCHDB_USER: admin
+          COUCHDB_PASSWORD: admin
+        options: >-
+          --name couchdb
+          --health-cmd "curl -f http://localhost:5984/_up || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      influxdb:
+        image: influxdb:2.0
+        ports:
+          - 8086:8086
+        env:
+          DOCKER_INFLUXDB_INIT_MODE: setup
+          DOCKER_INFLUXDB_INIT_USERNAME: default
+          DOCKER_INFLUXDB_INIT_PASSWORD: defaultpassword
+          DOCKER_INFLUXDB_INIT_ORG: default
+          DOCKER_INFLUXDB_INIT_BUCKET: sandbox
+          DOCKER_INFLUXDB_INIT_RETENTION: 1h
+          DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: admintoken
+        options: >-
+          --name influxdb
+          --health-cmd "curl -f http://localhost:8086/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      COUCHDB_URL: http://admin:admin@localhost:5984
+      INFLUXDB_URL: http://localhost:8086
+      INFLUXDB_TOKEN: admintoken
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Erlang/OTP ${{ matrix.otp }}
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ matrix.otp }}
+          rebar3-version: ${{ env.REBAR3_VERSION }}
+
+      - name: Cache rebar3 deps & build
+        uses: actions/cache@v4
+        with:
+          path: _build
+          key: ${{ runner.os }}-rebar3-${{ matrix.otp }}-${{ hashFiles('rebar.config', 'rebar.lock', 'src/**/*.erl') }}
+          restore-keys: |
+            ${{ runner.os }}-rebar3-${{ matrix.otp }}-
+
+      - name: Make test script executable
+        run: chmod +x ./run_test.sh
+
+      - name: Wait for CouchDB to be ready
+        run: |
+          echo "Waiting for CouchDB to be healthy..."
+          for i in {1..30}; do
+            if curl -fs http://admin:admin@localhost:5984/_up >/dev/null; then
+              echo "CouchDB is up!" && break
+            fi
+            sleep 2
+          done
+
+      - name: Wait for InfluxDB to be healthy
+        run: |
+          echo "Waiting for InfluxDB to be healthy..."
+          for i in {1..30}; do
+            if curl -fs http://localhost:8086/health >/dev/null; then
+              echo "InfluxDB is up!" && break
+            fi
+            sleep 2
+          done
+
+      - name: Run test suite
+        run: ./run_test.sh
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-otp-${{ matrix.otp }}
+          path: _build/test/cover
+
+  # ---------------------------------------------------------
+  # Build and publish the edoc
+  # Publish the coverage report from OTP ${{ env.COVERAGE_OTP }} run to GitHub Pages
+  publish-html:
+    needs: test
+    if: success() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # Build HTML API docs and place them under public/edoc so that
+      # the coverage report (index.html at the root) remains
+      # the entry-point of the site.
+      - name: Checkout repository (for docs)
+        uses: actions/checkout@v3
+
+      - name: Set up Erlang/OTP (for docs)
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ env.COVERAGE_OTP }}
+          rebar3-version: ${{ env.REBAR3_VERSION }}
+
+      - name: Generate EDoc documentation
+        run: |
+          rebar3 edoc
+          mkdir -p public/edoc
+          cp -r doc/* public/edoc/
+
+      # Strip absolute build path prefixes inside generated HTML so
+      # internal links are relative (remove ".../doc/")
+      - name: Make EDoc links relative
+        run: |
+          DOC_PREFIX=$(pwd | sed 's|$|/doc/|')
+          find public/edoc -type f -name '*.html' -print0 |\
+            xargs -0 sed -i -e "s|$DOC_PREFIX||g"
+
+      - name: Download coverage artifact (OTP ${{ env.COVERAGE_OTP }})
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-otp-${{ env.COVERAGE_OTP }}
+          path: public/cover
+
+      # Create a simple landing page that links to both reports
+      - name: Create landing page
+        run: |
+          cat > public/index.html <<'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <title>Documentation & reports</title>
+          </head>
+          <body>
+            <h1>Generated documentation and reports</h1>
+            <ul>
+              <li><a href="cover/index.html">Coverage report</a></li>
+              <li><a href="edoc/index.html">API docs (EDoc)</a></li>
+            </ul>
+          </body>
+          </html>
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # Upload the files as a Pages artifact
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      # Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
