@@ -169,6 +169,20 @@ make_error(Code, Msg, Id) ->
 -spec parse(json()) -> request() | [request()].
 parse(Reqs) when is_list(Reqs) ->
     [parse(Req) || Req <- Reqs];
+%% Accept objects represented as maps (some JSON decoders use this as their
+%% default Erlang representation).
+parse(ReqMap) when is_map(ReqMap) ->
+    Version = maps:get(<<"jsonrpc">>, ReqMap, undefined),
+    Method  = maps:get(<<"method">>,  ReqMap, undefined),
+    Params  = maps:get(<<"params">>,  ReqMap, []),
+    Id      = maps:get(<<"id">>,      ReqMap, undefined),
+    case Version =:= <<"2.0">>
+           andalso is_binary(Method)
+           andalso (is_list(Params) orelse is_tuple(Params) orelse is_map(Params))
+           andalso (Id =:= undefined orelse Id =:= null orelse is_binary(Id) orelse is_number(Id)) of
+        true  -> {Method, Params, Id};
+        false -> invalid_request
+    end;
 parse({Req}) ->
     Version = proplists:get_value(<<"jsonrpc">>, Req),
     Method  = proplists:get_value(<<"method">>,  Req),
