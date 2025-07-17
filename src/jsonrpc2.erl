@@ -17,17 +17,23 @@
 %% JSON encoding and decoding is not handled by this module. Thus, it must be
 %% handled outside, by the caller.
 %%
-%% The format of the parsed JSON is the so called eep0018 style terms, where
-%% strings are represented as binaries and objects are represented as proplists
-%% wrapped in a single element tuple. This format is supported by several JSON
-%% parsers.
+%% The library works with the two most common Erlang representations of JSON:
+%%
+%%  1. The original EEP-18 *property-list* format where objects are encoded as
+%%     a single-element tuple containing a proplist: `{[{<<"key">>, Value}]}`.
+%%  2. The newer *map* representation produced by many modern JSON libraries
+%%     (e.g. jsone): `#{<<"key">> => Value}`.
+%%
+%% Both formats are accepted transparently throughout the public API.
 -module(jsonrpc2).
 
 -export([handle/2, handle/3, handle/4, handle/5, parseerror/0]).
 
--type json() :: true | false | null | binary() | [json()] | {[{binary(), json()}]}.
+%% Objects may be either EEP-18 proplists wrapped in a tuple or plain maps.
+-type json() :: true | false | null | binary() | [json()] |
+               {[{binary(), json()}]} | #{binary() => json()}.
 -type method() :: binary().
--type params() :: [json()] | {[{binary(), json()}]}.
+-type params() :: [json()] | {[{binary(), json()}]} | #{binary() => json()}.
 -type id() :: number() | null.
 -type errortype() :: parse_error | method_not_found | invalid_params |
                      internal_error | server_error.
