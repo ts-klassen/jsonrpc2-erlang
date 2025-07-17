@@ -22,12 +22,12 @@
 %%  1. The original EEP-18 *property-list* format where objects are encoded as
 %%     a single-element tuple containing a proplist, for example:
 %%
-%%         {[{<<"key">>, Value}]}
+%%         {@code {[{<<"key">>, Value}]}}
 %%
 %%  2. The newer *map* representation produced by many modern JSON libraries
 %%     (e.g. jsone), for example:
 %%
-%%         #{<<"key">> => Value}
+%%         {@code #{<<"key">> => Value}}
 %%
 %% Both formats are accepted transparently throughout the public API.
 -module(jsonrpc2).
