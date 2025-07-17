@@ -71,7 +71,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Erlang/OTP ${{ matrix.otp }}
         uses: erlef/setup-beam@v1
@@ -137,7 +137,7 @@ jobs:
       # the coverage report (index.html at the root) remains
       # the entry-point of the site.
       - name: Checkout repository (for docs)
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Erlang/OTP (for docs)
         uses: erlef/setup-beam@v1
