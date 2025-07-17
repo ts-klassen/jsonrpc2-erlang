@@ -20,9 +20,14 @@
 %% The library works with the two most common Erlang representations of JSON:
 %%
 %%  1. The original EEP-18 *property-list* format where objects are encoded as
-%%     a single-element tuple containing a proplist: `{[{<<"key">>, Value}]}`.
+%%     a single-element tuple containing a proplist, for example:
+%%
+%%         {[{<<"key">>, Value}]}
+%%
 %%  2. The newer *map* representation produced by many modern JSON libraries
-%%     (e.g. jsone): `#{<<"key">> => Value}`.
+%%     (e.g. jsone), for example:
+%%
+%%         #{<<"key">> => Value}
 %%
 %% Both formats are accepted transparently throughout the public API.
 -module(jsonrpc2).
