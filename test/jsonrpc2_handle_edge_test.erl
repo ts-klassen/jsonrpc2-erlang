@@ -67,6 +67,22 @@ dispatch_server_error_notification_test() ->
                      {<<"params">>, []}]},
     noreply = jsonrpc2:handle(Notification, Handler).
 
+%% 8. Generic runtime error – triggers internal_error branch now that
+%%    jsonrpc2 has been updated to use the new try/catch stacktrace.
+
+dispatch_generic_runtime_error_test() ->
+    Crash = fun(_, _) -> 1 = 0 end,
+    Req = {[{<<"jsonrpc">>, <<"2.0">>},
+            {<<"method">>, <<"crash">>},
+            {<<"params">>, []},
+            {<<"id">>, 99}]},
+    {reply, Reply} = jsonrpc2:handle(Req, Crash),
+    {Obj} = Reply,
+    {Err} = proplists:get_value(<<"error">>, Obj),
+    -32603 = proplists:get_value(<<"code">>, Err),
+    <<"Internal error.">> = proplists:get_value(<<"message">>, Err),
+    99 = proplists:get_value(<<"id">>, Obj).
+
 %% 5. notification throws {invalid_params,Data} -> noreply (covers make_error_response/4 with undefined Id)
 
 dispatch_invalid_params_notification_with_data_test() ->
